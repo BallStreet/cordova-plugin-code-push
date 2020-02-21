@@ -34,19 +34,29 @@ NSString* const LastVersionPreferenceLabelOrAppVersionKey = @"LAST_VERSION_LABEL
 
         /* JS function to call: window.codePush.reportStatus(status: number, label: String, appVersion: String, deploymentKey: String) */
         NSString* script = [NSString stringWithFormat:@"document.addEventListener(\"deviceready\", function () { window.codePush.reportStatus(%i, %@, %@, %@, %@, %@); });", (int)statusReport.status, labelParameter, appVersionParameter, deploymentKeyParameter, lastVersionLabelOrAppVersionParameter, lastVersionDeploymentKeyParameter];
-        if ([webView respondsToSelector:@selector(evaluateJavaScript:completionHandler:)]) {
-            // The WKWebView requires JS evaluation to occur on the main
-            // thread starting with iOS11, so ensure that we dispatch to it before executing.
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [webView performSelector:@selector(evaluateJavaScript:completionHandler:) withObject:script withObject: NULL];
-            });
-        } else if ([webView isKindOfClass:[UIWebView class]]) {
-            // The UIWebView requires JS evaluation to occur on the main
-            // thread, so ensure that we dispatch to it before executing.
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [(UIWebView*)webView stringByEvaluatingJavaScriptFromString:script];
-            });
-        }
+        #if WK_WEB_VIEW_ONLY
+            if ([webView respondsToSelector:@selector(evaluateJavaScript:completionHandler:)]) {
+                // The WKWebView requires JS evaluation to occur on the main
+                // thread starting with iOS11, so ensure that we dispatch to it before executing.
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [webView performSelector:@selector(evaluateJavaScript:completionHandler:) withObject:script withObject: NULL];
+                });
+            }
+        #else
+            if ([webView respondsToSelector:@selector(evaluateJavaScript:completionHandler:)]) {
+                // The WKWebView requires JS evaluation to occur on the main
+                // thread starting with iOS11, so ensure that we dispatch to it before executing.
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [webView performSelector:@selector(evaluateJavaScript:completionHandler:) withObject:script withObject: NULL];
+                });
+            } else if ([webView isKindOfClass:[UIWebView class]]) {
+                // The UIWebView requires JS evaluation to occur on the main
+                // thread, so ensure that we dispatch to it before executing.
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [(UIWebView*)webView stringByEvaluatingJavaScriptFromString:script];
+                });
+            }
+        #endif
     }
 }
 
@@ -62,7 +72,7 @@ NSString* const LastVersionPreferenceLabelOrAppVersionKey = @"LAST_VERSION_LABEL
     if (HasFailedReport == -1) {
         HasFailedReport = [self getFailedReport] != nil;
     }
-    
+
     return HasFailedReport;
 }
 
@@ -72,7 +82,7 @@ NSString* const LastVersionPreferenceLabelOrAppVersionKey = @"LAST_VERSION_LABEL
     if (!failedReportDict) {
         return nil;
     }
-    
+
     return [[StatusReport alloc] initWithDictionary:failedReportDict];
 }
 
@@ -111,5 +121,3 @@ NSString* const LastVersionPreferenceLabelOrAppVersionKey = @"LAST_VERSION_LABEL
 }
 
 @end
-
-
